@@ -1,6 +1,6 @@
 % MATLAB 程式碼: 類神經模糊系統 (NFS) 結合 PSO 和 RLSE
 % 資料讀取
-filename = 'C:/Apple(2018).csv';
+filename = 'C:/TSMC_stock.csv';
 data = readtable(filename, 'VariableNamingRule', 'preserve'); % 確保變數名稱保留原始
 close_price = data.Close; % 提取收盤價
 ndata = length(close_price);
@@ -123,6 +123,53 @@ xlabel('Data Point');
 ylabel('Value');
 title('Testing Results');
 grid on;
+
+function future_predictions = predict_future(X_last, theta, gBest, nRules, days)
+    % X_last: 最後兩天的收盤價 (2x1 向量)
+    % theta: RLSE 訓練好的結論參數
+    % gBest: 最佳模糊規則參數 (來自 PSO)
+    % nRules: 模糊規則數量
+    % days: 要預測的未來天數
+    % future_predictions: 回傳未來 'days' 天的預測結果
+    
+    future_predictions = zeros(days, 1); % 初始化存放預測數據
+    
+    % 使用最後兩天的數據作為起點
+    X_prev = X_last; 
+    
+    for i = 1:days
+        % 預測下一天的收盤價
+        y_pred = predictNFS(X_prev, theta, gBest, nRules);
+        
+        % 存儲預測結果
+        future_predictions(i) = y_pred;
+        
+        % 更新 X_prev，使其包含最近的兩天數據
+        X_prev = [X_prev(2); y_pred]; 
+    end
+end
+
+% 取得最後兩天的數據
+X_last = [close_price(end-1); close_price(end)]; 
+
+% 設定預測天數
+days = 30;
+
+% 執行預測
+future_prices = predict_future(X_last, theta, gBest, nRules, days);
+
+% 顯示預測結果
+disp('未來 7 天的預測收盤價：');
+disp(future_prices);
+
+% 繪圖顯示未來趨勢
+figure;
+plot(1:days, future_prices, '-o', 'LineWidth', 2);
+xlabel('未來天數');
+ylabel('預測收盤價');
+title('未來 7 天股價預測');
+grid on;
+
 
 % --- 輔助函數 ---
 function mu = gaussian_func(h, c, sigma)
