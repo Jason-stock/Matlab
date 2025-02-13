@@ -34,57 +34,57 @@ switch F
         F_obj = @F3;
         LB=-100;
         UB=100;
-        Dim = 10;        
+        Dim = 30;        
     case 'F4'
         F_obj = @F4;
         LB=-100;
         UB=100;
-        Dim = 10;        
+        Dim = 30;        
     case 'F5'
         F_obj = @F5;
         LB=-30;
         UB=30;
-        Dim = 10;        
+        Dim = 30;        
     case 'F6'
         F_obj = @F6;
         LB=-100;
         UB=100;
-        Dim = 10;        
+        Dim = 30;        
     case 'F7'
         F_obj = @F7;
         LB=-1.28;
         UB=1.28;
-        Dim = 10;        
+        Dim = 30;        
     case 'F8'
         F_obj = @F8;
         LB=-500;
         UB=500;
-        Dim = 10;        
+        Dim = 30;        
     case 'F9'
         F_obj = @F9;
         LB=-5.12;
         UB=5.12;
-        Dim = 10;        
+        Dim = 30;        
     case 'F10'
         F_obj = @F10;
         LB=-32;
         UB=32;
-        Dim = 10;        
+        Dim = 30;        
     case 'F11'
         F_obj = @F11;
         LB=-600;
         UB=600;
-        Dim = 10;        
+        Dim = 30;        
     case 'F12'
         F_obj = @F12;
         LB=-50;
         UB=50;
-        Dim = 10;        
+        Dim = 30;        
     case 'F13'
         F_obj = @F13;
         LB=-50;
         UB=50;
-        Dim = 10;        
+        Dim = 30;        
     case 'F14'
         F_obj = @F14;
         LB=-65.536;
