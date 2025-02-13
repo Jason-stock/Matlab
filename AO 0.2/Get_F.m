@@ -23,13 +23,13 @@ switch F
         F_obj = @F1;
         LB=-100;
         UB=100;
-        Dim =10;
+        Dim =30;
         
     case 'F2'
         F_obj = @F2;
         LB=-10;
         UB=10;
-        Dim = 10;        
+        Dim = 30;        
     case 'F3'
         F_obj = @F3;
         LB=-100;

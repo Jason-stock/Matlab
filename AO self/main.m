@@ -6,9 +6,8 @@ close all;
 N = 50;        % 族群大小
 T = 1000;       % 最大迭代次數
 Dim = 30;      % 變數維度
-LB = -100;     % 下界
-UB = 100;      % 上界
-num_functions = 13; % 前 13 個測試函數
+
+num_functions = 13;
 
 % 儲存所有測試函數的收斂曲線
 convergence_curves = zeros(T, num_functions);
@@ -18,9 +17,7 @@ final_fitness_values = zeros(1, num_functions); % 儲存最終適應值
 for func_id = 1:num_functions
     fprintf('Running AO on Function F%d ...\n', func_id);
     
-    % 設定測試函數
-    F_obj = @(x) func(x, func_id);
-    
+    [LB,UB,Dim,F_obj] = Get_F("F"+num2str(func_id));
     % 執行 AO
     [Best_FF, Best_P, conv] = AO(N, T, LB, UB, Dim, F_obj);
     
