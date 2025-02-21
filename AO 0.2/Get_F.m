@@ -18,108 +18,108 @@
 %_______________________________________________________________________________________%
 
 function [LB,UB,Dim,F_obj] = Get_F(F)
+Dim = 100;
 switch F
     case 'F1'
         F_obj = @F1;
         LB=-100;
         UB=100;
-        Dim =30;
         
     case 'F2'
         F_obj = @F2;
         LB=-10;
         UB=10;
-        Dim = 30;        
+              
     case 'F3'
         F_obj = @F3;
         LB=-100;
         UB=100;
-        Dim = 30;        
+                
     case 'F4'
         F_obj = @F4;
         LB=-100;
         UB=100;
-        Dim = 30;        
+                
     case 'F5'
         F_obj = @F5;
         LB=-30;
         UB=30;
-        Dim = 30;        
+                
     case 'F6'
         F_obj = @F6;
         LB=-100;
         UB=100;
-        Dim = 30;        
+                
     case 'F7'
         F_obj = @F7;
         LB=-1.28;
         UB=1.28;
-        Dim = 30;        
+               
     case 'F8'
         F_obj = @F8;
         LB=-500;
         UB=500;
-        Dim = 30;        
+              
     case 'F9'
         F_obj = @F9;
         LB=-5.12;
         UB=5.12;
-        Dim = 30;        
+               
     case 'F10'
         F_obj = @F10;
         LB=-32;
         UB=32;
-        Dim = 30;        
+              
     case 'F11'
         F_obj = @F11;
         LB=-600;
         UB=600;
-        Dim = 30;        
+              
     case 'F12'
         F_obj = @F12;
         LB=-50;
         UB=50;
-        Dim = 30;        
+              
     case 'F13'
         F_obj = @F13;
         LB=-50;
         UB=50;
-        Dim = 30;        
+              
     case 'F14'
         F_obj = @F14;
         LB=-65.536;
         UB=65.536;
-        Dim=2;
+       
         
     case 'F15'
         F_obj = @F15;
         LB=-5;
         UB=5;
-        Dim=4;
+       
         
     case 'F16'
         F_obj = @F16;
         LB=-5;
         UB=5;
-        Dim=2;
+     
         
     case 'F17'
         F_obj = @F17;
         LB=[-5,0];
         UB=[10,15];
-        Dim=2;
+    
         
     case 'F18'
         F_obj = @F18;
         LB=-2;
         UB=2;
-        Dim=2;
+      
         
     case 'F19'
         F_obj = @F19;
         LB=0;
         UB=1;
-        Dim=3;
+       
         
     case 'F20'
         F_obj = @F20;

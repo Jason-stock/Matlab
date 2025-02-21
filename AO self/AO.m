@@ -12,7 +12,7 @@ function [Best_FF, Best_P, conv] = AO(N, T, LB, UB, Dim, F_obj)
 
     while t <= T
         for i = 1:size(X, 1)
-            % 邊界檢查
+            % 邊界檢查，如果超過會低於邊界值，則改為邊界值
             F_UB = X(i, :) > UB;
             F_LB = X(i, :) < LB;
             X(i, :) = (X(i, :) .* (~(F_UB + F_LB))) + UB .* F_UB + LB .* F_LB;
