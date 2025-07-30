@@ -24,7 +24,7 @@ end
 %RLSE
 for i=1:HNum
     h = HT(:,i);
-    %將5*16矩陣reshape成80*1矩陣
+    %將5*24矩陣reshape成120*1矩陣
     b = reshape([1;h]*nfs(i,:),[ruleNum*numOfCoeff,1]);
     [theta,p] = RLSE(b, theta, p, Y(i,:));
 end

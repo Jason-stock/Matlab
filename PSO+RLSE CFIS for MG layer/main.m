@@ -25,3 +25,4 @@ Y_predict_test = approximator(H_test, ifParm, cnsqParm, baseVarFuzzyN);
 printLoss(Y_predict_train, Y_train, Y_predict_test, Y_test);
 model_plot([Y_predict_train,Y_train],[Y_predict_test,Y_test], lossAll );
 rmpath(".\Model\",".\Dataset\",".\Model\Result\");
+

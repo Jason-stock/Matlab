@@ -11,5 +11,5 @@ function [cMbrDeg] = cGMF(h,m,s,l)
     %對s微分
     %w = -gaussmf(h,m,s)*((h-m)/s^3)*l;
 
-    cMbrDeg = r*exp(w*1i); 
+    cMbrDeg = r*exp(w*1i);
 end
