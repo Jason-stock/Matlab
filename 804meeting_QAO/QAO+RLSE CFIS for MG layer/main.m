@@ -1,4 +1,4 @@
-addpath(".\Model\",".\Dataset\",".\Model\Result\");
+addpath("C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\","C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\","C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\Result\");
 %addpath(".\Model\","\Dataset\",".\Result\",".\Model\LossFunc\",".\Model\Result\");
 [T, X] = getData("mgData.dat");
 [T, H, Y] = generateDataset(X,118,1000);
@@ -24,5 +24,5 @@ Y_predict_test = approximator(H_test, ifParm, cnsqParm, baseVarFuzzyN);
 %輸出圖形與損失值
 printLoss(Y_predict_train, Y_train, Y_predict_test, Y_test);
 model_plot([Y_predict_train,Y_train],[Y_predict_test,Y_test], lossAll );
-rmpath(".\Model\",".\Dataset\",".\Model\Result\");
+rmpath("C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\","C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\","C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\Result\");
 

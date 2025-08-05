@@ -1,4 +1,4 @@
-function [gBest, thenParm, yAll] = AOA(tIter, H_train, Y_train, particleNum, baseVarFuzzyN)
+function [gBest, thenParm, yAll] = AO(tIter, H_train, Y_train, particleNum, baseVarFuzzyN)
     % 初始化參數
     parmDim = sum(baseVarFuzzyN) * 3;
     error = 0.001;

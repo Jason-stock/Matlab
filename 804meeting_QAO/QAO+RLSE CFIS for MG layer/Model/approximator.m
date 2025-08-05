@@ -1,5 +1,5 @@
 function [Y_predict] = approximator(H, ifParm, cnsqParm, baseVarFuzzyN)
-addpath(".\Model\FIS\");
+addpath("C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\FIS\");
 
 %初始化每條rule的係數與佔整體結果的權重
 HNum = size(H,1);
@@ -19,5 +19,5 @@ for i=1:HNum
     ruleOut = layer4(h,cnsqParm,nfs(i,:));
     Y_predict(i,1) = layer5(ruleOut);
 end
-rmpath(".\Model\FIS\");
+rmpath("C:\Users\jason\Matlab\804meeting_QAO\QAO+RLSE CFIS for MG layer\Model\FIS\");
 end
