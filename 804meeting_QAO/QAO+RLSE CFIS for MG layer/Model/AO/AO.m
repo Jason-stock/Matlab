@@ -51,17 +51,6 @@ for t = 1:tIter
             X_new  = gBest + A .* levyFlight(parmDim);
         end
         
-        % ---------- 加入氫原子 1s 量子擾動 ----------
-        dir   = randn(1, parmDim);             % 隨機方向向量
-        dir   = dir / (norm(dir) + eps);       % 單位化避免除 0
-        r_q   = sample2s();                    % 徑向距離 (1s 機率密度)
-        scale = 0.5;                           % 將 r_q 轉換為搜尋空間尺度
-        X_new = X_new + dir * r_q * scale;     % 將量子擾動加到 AO 結果
-        
-        % ---------- 邊界約束 ----------
-        X_new = max(X_new, LB);                % 低於下界 → 拉回
-        X_new = min(X_new, UB);                % 高於上界 → 拉回
-        
         % ---------- 適應度評估 ----------
         [Y_out, tmpParm] = cFIS(H_train, Y_train, baseVarFuzzyN, X_new);
         fNew             = RMSE(Y_out, Y_train);
@@ -88,7 +77,6 @@ for t = 1:tIter
     end
 end
 end  % ← 主函式結束
-
 %% ──────────────────── 4. 附屬函式 ──────────────────────
 function step = levyFlight(d)
 % levyFlight  生成長尾分佈步長 (Mantegna 演算法)
@@ -98,17 +86,4 @@ sigma = ( gamma(1+beta) * sin(pi*beta/2) / ...
 u = randn(1,d) * sigma;                    % 正態分佈 u
 v = randn(1,d);                            % 正態分佈 v
 step = u ./ abs(v).^(1/beta);              % Levy 步長
-end
-
-function r = sample1s()
-% sample1s  根據氫原子 1s 態徑向機率密度取樣距離 r
-% 1s 分佈對應 Gamma(k=3, θ=1)；r = ρ/2 (a0=1)
-r = sum(-log(rand(3,1)))/2; 
-end
-
-function r = sample2s()   % 2s 態徑向採樣 (數值逆 CDF)
-u   = rand;
-F   = @(rho) 1 - exp(-rho).*(1+rho+rho.^2/2+rho.^4/8) - u;
-rho = fzero(F, [0,20]);   % 求 F(ρ)=u 之根
-r   = rho;                % (a0 = 1) → r = ρ
 end
