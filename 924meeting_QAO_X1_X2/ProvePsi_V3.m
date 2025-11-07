@@ -23,10 +23,16 @@ fprintf('原始 X 軸範圍 (G_x): [%.1f, %.1f]\n', min(r_values_original), max(
 fprintf('--------------------------------------------------\n');
 
 %% 2. 設定 X 軸的自訂範圍並呼叫函數
-% (此部分與採樣無關，但保留原功能)
+% 使用者想要調整 X 軸成的目標範圍 [Umin_x, Umax_x]
 Umin_x = 0.0;
 Umax_x = 0.6;
-r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
+
+% 【修改】定義固定的來源範圍
+source_range = [min(r_values_original), max(r_values_original)];
+
+% 【修改】呼叫 rescale_axis_range 函數來調整 X 軸，傳入固定的來源範圍
+r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x, source_range);
+
 fprintf('已將 X 軸調整至 [%.1f, %.1f]\n', Umin_x, Umax_x);
 fprintf('驗證：調整後 X 軸的實際範圍為 [%.6f, %.6f]\n', min(r_values_rescaled), max(r_values_rescaled));
 
@@ -45,7 +51,7 @@ subplot(2, 1, 2);
 plot(r_values_rescaled, P_r_values_normalized, 'r-', 'LineWidth', 2);
 title(sprintf('調整後的 P(r) 函數 - 目標 X 軸範圍 [%.1f, %.1f]', Umin_x, Umax_x), 'FontSize', 14);
 xlabel('調整後的 X 軸 (標準化半徑)', 'FontSize', 12);
-ylabel('機率密度 P(r)', 'FontSize', 12);
+ylabel('機率密度 P(r) (Y軸未縮放)', 'FontSize', 12);
 legend(sprintf('調整後 X 軸範圍: [%.4f, %.4f]', min(r_values_rescaled), max(r_values_rescaled)));
 grid on;
 xlim([Umin_x, Umax_x]); 
@@ -54,44 +60,75 @@ xlim([Umin_x, Umax_x]);
 %% 4. 使用逆轉換採樣 (Inverse Transform Sampling) 生成隨機樣本
 fprintf('--------------------------------------------------\n');
 fprintf('開始執行逆轉換採樣...\n');
-
-% 設定要生成的樣本數量
-num_samples = 20000; % 例如，生成 20000 個樣本
-
-% 呼叫逆轉換採樣函數
+num_samples = 20000; 
 generated_samples = inverse_transform_sampling(r_values_original, P_r_values_normalized, num_samples);
-
 fprintf('已成功生成 %d 個樣本。\n', num_samples);
 fprintf('樣本範圍: [%.4f, %.4f]\n', min(generated_samples), max(generated_samples));
 
 %% 5. 繪製生成的樣本分佈 vs. 原始 P(r) (Figure 2)
-figure('Name', '逆轉換採樣結果 (修正後)');
-
-% 5.1. 繪製生成樣本的直方圖 (歸一化為 PDF)
+figure('Name', '逆轉換採樣結果 (原始 [0, 30] 範圍)');
 histogram(generated_samples, 100, 'Normalization', 'pdf', 'DisplayName', '生成的樣本 (Histogram)');
 hold on;
-
-% 5.2. 疊加繪製原始的 P(r) 函數以供比較
 plot(r_values_original, P_r_values_normalized, 'r-', 'LineWidth', 2, 'DisplayName', '原始 P(r) 函數');
-
 title('逆轉換採樣樣本分佈 vs. 原始 PDF', 'FontSize', 14);
 xlabel('物理半徑 r', 'FontSize', 12);
 ylabel('機率密度', 'FontSize', 12);
 legend;
 grid on;
-xlim([min(r_values_original), 15]); % 由於 PDF 集中在左側，可縮放 X 軸以便觀察
-% xlim([min(r_values_original), max(r_values_original)]); % 顯示完整 r 範圍
+xlim([min(r_values_original), 15]); % 縮放 X 軸以便觀察
+
+
+%% 6. 【修正】繪製 "縮放後" 的樣本分佈 vs. "縮放後" 的 P(r) (Figure 3)
+figure('Name', '逆轉換採樣結果 (縮放後 [0, 0.6] 範圍) - 已修正');
+
+% 6.1. 【修正】將生成的樣本 (在 [0, 30] 空間) 縮放到 [0, 0.6] 空間
+% **關鍵修正：** 傳入 'source_range' ([0, 30]) 作為第四個參數
+% 這樣才能確保樣本和 PDF 是在 *相同* 的基礎上被縮放的
+rescaled_samples = rescale_axis_range(generated_samples, Umin_x, Umax_x, source_range);
+
+% 6.2. 為了使 PDF 在 [0, 0.6] 上的積分仍為 1，我們必須調整 Y 軸 (密度)
+scaling_factor = (source_range(2) - source_range(1)) / (Umax_x - Umin_x);
+P_r_values_rescaled_density = P_r_values_normalized .* scaling_factor;
+
+% 6.3. 繪製 "縮放後樣本" 的直方圖
+histogram(rescaled_samples, 100, 'Normalization', 'pdf', 'DisplayName', '縮放後的樣本 (Histogram)');
+hold on;
+
+% 6.4. 疊加繪製 "X 軸和 Y 軸都經過縮放" 的 PDF
+plot(r_values_rescaled, P_r_values_rescaled_density, 'r-', 'LineWidth', 2, 'DisplayName', '縮放後的 P(r) 函數 (密度已調整)');
+
+title('縮放後樣本分佈 vs. 縮放後 PDF (已修正)', 'FontSize', 14);
+xlabel('調整後的 X 軸 (標準化半徑)', 'FontSize', 12);
+ylabel('調整後的機率密度', 'FontSize', 12);
+legend;
+grid on;
+xlim([Umin_x, Umax_x]); % 鎖定 X 軸到 [0, 0.6]
 
 
 %% ========================================================================
 % ==                      輔助函數 (Functions)                        ==
 % ========================================================================
 
-function U_x = rescale_axis_range(G_x, Umin_x, Umax_x)
+function U_x = rescale_axis_range(G_x, Umin_x, Umax_x, G_source_range)
 %RESCALE_AXIS_RANGE 將輸入的 X 軸向量 G_x 線性映射到一個新的範圍 [Umin_x, Umax_x]
-    
-    Gmin_x = min(G_x);
-    Gmax_x = max(G_x);
+%
+%   輸入:
+%       G_x             - 原始的 X 軸數據向量 (例如 r_values 或 generated_samples)
+%       Umin_x          - 目標 X 軸範圍的最小值
+%       Umax_x          - 目標 X 軸範圍的最大值
+%       G_source_range  - (可選) [Gmin, Gmax] 向量。如果提供，
+%                         函數將使用此範圍作為來源範圍，而不是 G_x 的 min/max。
+
+    % 【修改】 檢查是否提供了 G_source_range
+    if nargin < 4
+        % 如果未提供，使用 G_x 自己的 min/max
+        Gmin_x = min(G_x(:)); 
+        Gmax_x = max(G_x(:));
+    else
+        % 如果提供了，使用指定的 G_source_range
+        Gmin_x = G_source_range(1);
+        Gmax_x = G_source_range(2);
+    end
     
     if Gmax_x == Gmin_x
         U_x = ones(size(G_x)) * Umin_x;
@@ -106,44 +143,23 @@ end
 
 function samples = inverse_transform_sampling(x_values, pdf_values, num_samples)
 %INVERSE_TRANSFORM_SAMPLING 從數值 PDF 生成隨機樣本
-%
-%   輸入:
-%       x_values     - PDF 的 X 軸 (例如 r_values_original)
-%       pdf_values   - PDF 的 Y 軸 (例如 P_r_values_normalized)
-%       num_samples  - 要生成的樣本數量
-%
-%   輸出:
-%       samples      - 生成的隨機樣本向量
 
     % 1. 計算數值 CDF (累積分佈函數)
-    % 確保 x_values 和 pdf_values 是行向量
     x_values = x_values(:)';
     pdf_values = pdf_values(:)';
     CDF_values = cumtrapz(x_values, pdf_values);
 
     % 2. 確保 CDF 範圍是 [0, 1] 
-    % 為了數值穩定性，我們手動將第一個值設為 0，最後一個值設為 1
     CDF_values(1) = 0;
     CDF_values(end) = 1;
     
-    % 3. 【修正】處理 CDF 中的平坦區域 (重複值)
-    % 我們需要一個 "嚴格" 單調遞增的 CDF 向量 (CDF_unique)
-    % 和 "對應" 的 x 值 (x_unique)
-    
-    % 使用 'last' 選項：
-    % 這會保留每個 "平台期" (例如 CDF = 0 或 CDF = 1) 的 *最後一個* 點的索引。
-    % - 對於開頭的 0 平台，它會正確地將 u=0 映射到 PDF 開始有值的點。
-    % - 對於結尾的 1 平台，它會正確地將 u=1 映射到 x 軸的終點 (例如 r=30)。
+    % 3. 處理 CDF 中的平坦區域 (重複值)
     [CDF_unique, ia] = unique(CDF_values, 'last');
-    
-    % 根據 'last' 索引，提取對應的 x 值
     x_unique = x_values(ia);
 
     % 4. 生成 U(0, 1) 的均勻分佈隨機數
     u = rand(num_samples, 1);
 
     % 5. 執行逆轉換：使用 "乾淨" 且 "唯一" 的 CDF 和 X 值進行插值
-    % interp1(Y_lookup, X_lookup, Y_query)
-    % Y_lookup (CDF_unique) 必須是唯一的
     samples = interp1(CDF_unique, x_unique, u);
 end
