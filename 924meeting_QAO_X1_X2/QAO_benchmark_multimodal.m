@@ -151,6 +151,19 @@ function [bestCost, best_cost_history, bestX] = qao_run(func, dim, max_iter, n_p
     bestCost = gBestVal;
 
     best_cost_history = zeros(max_iter, 1);
+    % 將完整波型內的面積算出來，使用matlab trapz()函式計算
+    a0 = 1; 
+    num_slots = 10000;
+    num_points = num_slots + 1;
+
+    % 原始 X 軸：物理距離 r (範圍 [0, 30])
+    r_values_original = linspace(0, 30, num_points);
+
+    % Y 軸：計算對應的機率密度 P(r)
+    P_r_values = (4 / a0^3) .* (r_values_original.^2) .* exp(-2 .* r_values_original ./ a0);
+    % (可選) 歸一化Y軸面積，這不影響X軸的調整
+    area = trapz(r_values_original, P_r_values);
+    P_r_values_normalized = P_r_values / area;
 
     for t = 1:max_iter
         X_mean = mean(X, 1);
@@ -363,7 +376,32 @@ function r_norm = inverse_transform_sampling(dim)
     r_norm = min(max(r_norm, 0), 1);
 end
 
+function U_x = rescale_axis_range(G_x, Umin_x, Umax_x)
+%RESCALE_AXIS_RANGE 將輸入的 X 軸向量 G_x 線性映射到一個新的範圍 [Umin_x, Umax_x]
+%
+%   輸入:
+%       G_x    - 原始的 X 軸數據向量 (例如 r_values)
+%       Umin_x - 目標 X 軸範圍的最小值
+%       Umax_x - 目標 X 軸範圍的最大值
+%
+%   輸出:
+%       U_x    - 調整到新範圍的 X 軸數據向量
 
+    % 獲取 G_x 的實際最大值和最小值
+    Gmin_x = min(G_x);
+    Gmax_x = max(G_x);
+    
+    % 檢查 Gmax 和 Gmin 是否相同，以避免除以零
+    if Gmax_x == Gmin_x
+        U_x = ones(size(G_x)) * Umin_x;
+        warning('輸入的 X 軸向量所有元素都相同。');
+        return;
+    end
+
+    % 應用標準範圍調整公式 (與 Y 軸調整的邏輯相同)
+    % U_x = ( (G_x - Gmin_x) / (Gmax_x - Gmin_x) ) * (Umax_x - Umin_x) + Umin_x;
+    U_x = ((G_x - Gmin_x) ./ (Gmax_x - Gmin_x)) .* (Umax_x - Umin_x) + Umin_x;
+end
 
 % ===================== 測試函數 =====================
 function y = sphere(x)
