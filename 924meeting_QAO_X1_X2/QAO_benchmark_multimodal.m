@@ -41,7 +41,7 @@ function QAO_optimization
             
             for run = 1:n_runs
                 rng('shuffle');  % 每次運行使用不同的隨機種子
-                [bestCost, best_cost_history, bestX] = ao_run(functions{i}, dim, max_iter, n_particles, bounds(i, :));
+                [bestCost, best_cost_history, bestX] = qao_run(functions{i}, dim, max_iter, n_particles, bounds(i, :));
                 
                 run_results(run) = bestCost;
                 run_convergence(run, :) = best_cost_history;
@@ -173,41 +173,27 @@ function [bestCost, best_cost_history, bestX] = qao_run(func, dim, max_iter, n_p
         for p = 1:n_particles
             if t <= (2/3)*max_iter
                 if rand < 0.5
-                    % Expanded exploration (1) - 氫原子 1s 徑向
-                    r_norm = inverse_transform_sampling(dim);
-                    direction = norm(X_mean - gBest);
-                    X_new = gBest.*(t/max_iter) + r_norm .* direction;
+                    % Expanded exploration (1)
+                    X_new = gBest .* (1 - t/max_iter) + (X_mean - gBest * rand);
                 else
-                    % Narrowed exploration (2) - 氫原子 1s 徑向分佈（原點-電子模型）
-                    % 原點當作質子，X_random 當作電子
+                    % Narrowed exploration (2) with Lévy
+                    levy_val = levy_step(dim, u);
                     rand_idx = floor(n_particles * rand) + 1;
-                    X_rand = X(rand_idx, :);  % 隨機個體作為電子位置
-                    
-                    % 使用氫原子1s軌域的徑向分佈
-                    r_norm = inverse_transform_sampling(dim);
-                    
-                    % 計算從原點（質子）到隨機個體（電子）的方向
-                    origin = zeros(1, dim);  % 原點座標
-                    direction = norm(X_rand - origin);  % 從質子到電子的方向向量
-
-                    r1 = 1 + (20-1)*rand;     % r1 ∈ [1,20]
-                    D1 = 1:dim;
-                    r = r1 + u * D1;
-                    theta = -w * D1 + theta1;
-    
-
-                    y = r .* cos(theta);
-                    x = r .* sin(theta);
-
-                    spiral = (y - x) .* rand(1, dim);
-                    
-                    % 新位置 = 質子位置 + 氫原子機率分佈距離 * 方向
-                    X_new = gBest.*levy_step(dim, u) + origin + r_norm .* direction + spiral;
+                    X_rand = X(rand_idx, :);
+                    X_new = gBest .* levy_val + X_rand + (rand - 0.5) * 1e-3;
                 end
             else
                 if rand < 0.5
                     % Expanded exploitation (3)
-                    X_new = (gBest - X_mean)*alpha - rand + (rand)*delta;
+                    Umin_x = mean(gBest);  % 氫原子
+                    Umax_x = mean(X_mean);  % 電子
+
+                    % 呼叫 rescale_axis_range 函數來調整 X 軸，傳入固定的來源範圍
+                    r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
+                    generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
+
+
+                    X_new = (gBest - generated_samples)*alpha - rand + ((ub - lb) * rand)*delta;
                 else
                     % Narrowed exploitation (4)
                     QF = t^((2*rand - 1)/(1 - max_iter)^2);
@@ -295,7 +281,15 @@ function [bestCost, best_cost_history, bestX] = ao_run(func, dim, max_iter, n_pa
             else
                 if rand < 0.5
                     % Expanded exploitation (3)
-                    X_new = (gBest - X_mean) * alpha - rand + (rand) * delta;
+                    Umin_x = mean(gBest);  % 氫原子
+                    Umax_x = mean(X_mean);  % 電子
+
+                    % 呼叫 rescale_axis_range 函數來調整 X 軸，傳入固定的來源範圍
+                    r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
+                    generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
+
+
+                    X_new = (gBest - generated_samples)*alpha - rand + ((ub - lb) * rand)*delta;
                 else
                     % Narrowed exploitation (4)
                     QF = t^((2*rand - 1)/(1 - max_iter)^2);
@@ -344,36 +338,28 @@ function step = levy_step(d, u)
     step = 0.01 * (w ./ (abs(v).^(1/beta)));
 end
 
-function r_norm = inverse_transform_sampling(dim)
-    % 氫原子 1s 徑向分佈 P(r) ~ r^2 exp(-2r)
-    u = rand(1, dim);
-    r = ones(1, dim);
-    max_iter = 20;
-    tol = 1e-8;
+function samples = inverse_transform_sampling(x_values, pdf_values, num_samples)
+%INVERSE_TRANSFORM_SAMPLING 從數值 PDF 生成隨機樣本
 
-    for i = 1:dim
-        g  = @(x) 1 - (2*x^2 + 2*x + 1) * exp(-2*x) - u(i);
-        gp = @(x) 4 * x.^2 .* exp(-2*x);
+    % 1. 計算數值 CDF (累積分佈函數)
+    x_values = x_values(:)';
+    pdf_values = pdf_values(:)';
+    CDF_values = cumtrapz(x_values, pdf_values);
 
-        ri = (u(i) < 0.5) * 0.5 + (u(i) >= 0.5) * 2.0;
-        for it = 1:max_iter
-            fx = g(ri);
-            if abs(fx) < tol, break; end
-            fpx = gp(ri);
-            if abs(fpx) < 1e-12
-                ri = ri + tol;
-                continue;
-            end
-            ri_new = ri - fx / fpx;
-            if ri_new < 0, ri_new = tol; elseif ri_new > 10, ri_new = 10; end
-            if abs(ri_new - ri) < tol, ri = ri_new; break; end
-            ri = ri_new;
-        end
-        r(i) = ri;
-    end
+    % 2. 確保 CDF 範圍是 [0, 1] 
+    CDF_values(1) = 0;
+    CDF_values(end) = 1;
+    
+    % 3. 處理 CDF 中的平坦區域 (重複值)
+    [CDF_unique, ia] = unique(CDF_values, 'last');
+    x_unique = x_values(ia);
 
-    r_norm = r / 6.0;               % 99.9% 質機率密度 ~ [0,6]
-    r_norm = min(max(r_norm, 0), 1);
+    % 4. 生成 U(0, 1) 的均勻分佈隨機數
+    u = rand(num_samples, 1);
+
+    % 5. 執行逆轉換：使用 "乾淨" 且 "唯一" 的 CDF 和 X 值進行插值
+    samples = interp1(CDF_unique, x_unique, u);
+    samples = samples(:)'; 
 end
 
 function U_x = rescale_axis_range(G_x, Umin_x, Umax_x)

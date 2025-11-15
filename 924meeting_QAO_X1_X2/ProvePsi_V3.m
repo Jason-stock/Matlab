@@ -78,7 +78,7 @@ grid on;
 xlim([min(r_values_original), 15]); % 縮放 X 軸以便觀察
 
 
-%% 6. 【修正】繪製 "縮放後" 的樣本分佈 vs. "縮放後" 的 P(r) (Figure 3)
+%% 6. 繪製 "縮放後" 的樣本分佈 vs. "縮放後" 的 P(r) (Figure 3)
 figure('Name', '逆轉換採樣結果 (縮放後 [0, 0.6] 範圍) - 已修正');
 
 % 6.1. 【修正】將生成的樣本 (在 [0, 30] 空間) 縮放到 [0, 0.6] 空間
@@ -111,31 +111,17 @@ xlim([Umin_x, Umax_x]); % 鎖定 X 軸到 [0, 0.6]
 
 function U_x = rescale_axis_range(G_x, Umin_x, Umax_x, G_source_range)
 %RESCALE_AXIS_RANGE 將輸入的 X 軸向量 G_x 線性映射到一個新的範圍 [Umin_x, Umax_x]
-%
-%   輸入:
+
 %       G_x             - 原始的 X 軸數據向量 (例如 r_values 或 generated_samples)
 %       Umin_x          - 目標 X 軸範圍的最小值
 %       Umax_x          - 目標 X 軸範圍的最大值
 %       G_source_range  - (可選) [Gmin, Gmax] 向量。如果提供，
 %                         函數將使用此範圍作為來源範圍，而不是 G_x 的 min/max。
 
-    % 【修改】 檢查是否提供了 G_source_range
-    if nargin < 4
-        % 如果未提供，使用 G_x 自己的 min/max
-        Gmin_x = min(G_x(:)); 
-        Gmax_x = max(G_x(:));
-    else
-        % 如果提供了，使用指定的 G_source_range
-        Gmin_x = G_source_range(1);
-        Gmax_x = G_source_range(2);
-    end
-    
-    if Gmax_x == Gmin_x
-        U_x = ones(size(G_x)) * Umin_x;
-        warning('輸入的 X 軸向量所有元素都相同。');
-        return;
-    end
-
+    % 如果提供了，使用指定的 G_source_range
+    Gmin_x = G_source_range(1);
+    Gmax_x = G_source_range(2);
+  
     % 應用標準範圍調整公式
     U_x = ((G_x - Gmin_x) ./ (Gmax_x - Gmin_x)) .* (Umax_x - Umin_x) + Umin_x;
 end

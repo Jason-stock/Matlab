@@ -16,7 +16,10 @@ P_r_values = (4 / a0^3) .* (r_values_original.^2) .* exp(-2 .* r_values_original
 % (可選) 歸一化Y軸面積，這不影響X軸的調整
 area = trapz(r_values_original, P_r_values);
 P_r_values_normalized = P_r_values / area;
+new_area = trapz(r_values_original, P_r_values_normalized);
 
+
+fprintf('正規化前Area:%.20f , 正規化後Area:%.20f\n',area,new_area);
 fprintf('已生成原始 P(r) 函數。\n');
 fprintf('原始 X 軸範圍 (G_x): [%.1f, %.1f]\n', min(r_values_original), max(r_values_original));
 fprintf('--------------------------------------------------\n');
