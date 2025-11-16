@@ -69,7 +69,7 @@ function QAO_optimization
             
             for run = 1:n_runs
                 rng('shuffle');  % 每次運行使用不同的隨機種子
-                [bestCost, best_cost_history, bestX] = ao_run(functions{i}, dim, max_iter, n_particles, bounds(i, :));
+                [bestCost, best_cost_history, bestX] = qao_run(functions{i}, dim, max_iter, n_particles, bounds(i, :));
                 
                 run_results(run) = bestCost;
                 run_convergence(run, :) = best_cost_history;
@@ -204,14 +204,41 @@ function [bestCost, best_cost_history, bestX] = qao_run(func, dim, max_iter, n_p
         for p = 1:n_particles
             if t <= (2/3)*max_iter
                 if rand < 0.5
-                    % Expanded exploration (1)
-                    X_new = gBest .* (1 - t/max_iter) + (X_mean - gBest * rand);
+                    % Expanded exploration (1) - 氫原子 1s 徑向
+                    % 使用平均值來當作要修改的範圍
+                    Umin_x = mean(X_mean);  % 氫原子
+                    Umax_x = mean(gBest);  % 電子
+
+                    % 呼叫 rescale_axis_range 函數來調整 X 軸，傳入固定的來源範圍
+                    r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
+                    generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
+                    X_new = gBest .* (1 - t/max_iter) + generated_samples;
                 else
-                    % Narrowed exploration (2) with Lévy
-                    levy_val = levy_step(dim, u);
+                    % Narrowed exploration (2) - 氫原子 1s 徑向分佈（原點-電子模型）
+                    % 原點當作質子，X_random 當作電子
                     rand_idx = floor(n_particles * rand) + 1;
-                    X_rand = X(rand_idx, :);
-                    X_new = gBest .* levy_val + X_rand + (rand - 0.5) * 1e-3;
+                    X_rand = X(rand_idx, :);  % 隨機個體作為電子位置
+                    
+                    origin = zeros(1,dim);
+                    Umin_x = mean(origin);
+                    Umax_x = mean(X_rand);
+
+                    r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
+                    generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
+
+                    r1 = 1 + (20-1)*rand;     % r1 ∈ [1,20]
+                    D1 = 1:dim;
+                    r = r1 + u * D1;
+                    theta = -w * D1 + theta1;
+    
+
+                    y = r .* cos(theta);
+                    x = r .* sin(theta);
+
+                    spiral = (y - x) .* rand(1, dim);
+                    
+                    % 新位置 = 質子位置 + 氫原子機率分佈距離 * 方向
+                    X_new = gBest.*levy_step(dim, u) + X_rand + generated_samples + spiral;
                 end
             else
                 if rand < 0.5
