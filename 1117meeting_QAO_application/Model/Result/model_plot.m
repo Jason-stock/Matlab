@@ -12,7 +12,7 @@ title('Learning Curve');
 figure;
 error_train = Y_predict_train-Y_train;
 error_test = Y_predict_test-Y_test;
-result_plot_error(1:500, real(error_train), 1:500, real(error_test ));
+result_plot_error(1:500, real(error_train), 1:498, real(error_test ));
 title('Function approximation error');
 
 %函數圖形繪製
@@ -21,7 +21,7 @@ result_plot_graph(1:500, Y_train, real(Y_predict_train));
 title("Graph of training");
 
 figure;
-result_plot_graph(501:1000, Y_test, real(Y_predict_test));
+result_plot_graph(501:998, Y_test, real(Y_predict_test));
 title("Graph of testing");
 end
 
