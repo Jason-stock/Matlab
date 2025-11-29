@@ -50,10 +50,12 @@ for r = 1:nRuns
     Y_predict_train = approximator(H_train, ifParm, cnsqParm, baseVarFuzzyN);
     Y_predict_test = approximator(H_test, ifParm, cnsqParm, baseVarFuzzyN);
 
-    %輸出圖形與損失值
-    printLoss(Y_predict_train, Y_train, Y_predict_test, Y_test);
-    model_plot([Y_predict_train,Y_train],[Y_predict_test,Y_test], lossAll );
+    % %輸出圖形與損失值
+    % printLoss(Y_predict_train, Y_train, Y_predict_test, Y_test);
+    % model_plot([Y_predict_train,Y_train],[Y_predict_test,Y_test], lossAll );
 end
+
+
 
 % ====== 計算統計量 ======
 bestVal = min(finalRMSEs);
