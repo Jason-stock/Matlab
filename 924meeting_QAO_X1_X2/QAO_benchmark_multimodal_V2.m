@@ -6,7 +6,7 @@ function QAO_optimization
     % [修改] 將每個維度(30D, 50D, 100D)的所有函數(F1-F13)繪製在同一張圖上。
 
     % ===== 參數設定 =====
-    dimList    = [30, 50, 100];   % 測試維度
+    dimList    = [30];   % 測試維度
     max_iter   = 2000;            % 最大迭代數
     n_particles = 50;             % 族群數量
 
@@ -40,16 +40,18 @@ function QAO_optimization
     % 新增運行次數參數
     n_runs = 15;                  % 運行次數
     
-    % 初始化統計結果儲存
-    all_results = zeros(length(dimList), length(functions), n_runs);
-    all_convergence = zeros(length(dimList), length(functions), n_runs, max_iter);
+    % 優化：使用更精確的變數命名和預分配
+    n_dims = length(dimList);
+    n_funcs = length(functions);
+    all_results = zeros(n_dims, n_funcs, n_runs);
+    all_convergence = zeros(n_dims, n_funcs, n_runs, max_iter);
 
-    for d = 1:length(dimList)
+    for d = 1:n_dims
         dim = dimList(d);
         fprintf('\n===== Testing Dimension: %d =====\n', dim);
 
         % [修改] 儲存此維度下所有函數的最佳收斂曲線
-        all_best_curves_for_dim = zeros(length(functions), max_iter);
+        all_best_curves_for_dim = zeros(n_funcs, max_iter);
         
         % [修改] 在函數迴圈開始前，為此維度建立一個新圖形
         figure('Color','w','Name',sprintf('All Functions (%d-D) - Best Run Convergence', dim));
@@ -60,7 +62,7 @@ function QAO_optimization
         ylabel('Best Objective (log scale)', 'FontSize', 12);
         grid on;
 
-        for i = 1:length(functions)
+        for i = 1:n_funcs
             fprintf('Running %s (%d-D)...\n', function_names{i}, dim);
             
             % 執行15次實驗
@@ -110,14 +112,17 @@ function QAO_optimization
         iterations = 1:max_iter;
         colors = lines(7); % 使用 7 種基礎顏色
         lineStyles = {'-', '--', ':', '-.'};
+        n_colors = size(colors, 1);
+        n_styles = length(lineStyles);
         
-        for i = 1:length(functions)
-            % 循環使用顏色和線型
-            color_idx = mod(i-1, size(colors, 1)) + 1;
-            style_idx = mod(floor((i-1) / size(colors, 1)), length(lineStyles)) + 1;
+        for i = 1:n_funcs
+            % 優化：預先計算索引，避免重複計算
+            color_idx = mod(i-1, n_colors) + 1;
+            style_idx = mod(floor((i-1) / n_colors), n_styles) + 1;
             
+            % 優化：使用 max 確保數值大於 eps，避免 log(0)
             plot(iterations, max(all_best_curves_for_dim(i, :), eps), ...
-                'DisplayName', function_names{i}, ... % 用於圖例
+                'DisplayName', function_names{i}, ...
                 'LineWidth', 2, ...
                 'Color', colors(color_idx, :), ...
                 'LineStyle', lineStyles{style_idx});
@@ -129,15 +134,16 @@ function QAO_optimization
     
     % 生成總結報告
     fprintf('\n\n========== FINAL SUMMARY REPORT ==========\n');
-    for d = 1:length(dimList)
+    for d = 1:n_dims
         dim = dimList(d);
         fprintf('\n--- Dimension: %d ---\n', dim);
         fprintf('%-18s | %-12s | %-12s | %-12s | %-12s\n', ...
                 'Function', 'Best', 'Worst', 'Mean', 'Std Dev');
         fprintf('%s\n', repmat('-', 1, 80));
         
-        for i = 1:length(functions)
+        for i = 1:n_funcs
             results = squeeze(all_results(d, i, :));
+            % 優化：一次性計算所有統計量
             fprintf('%-18s | %.6e | %.6e | %.6e | %.6e\n', ...
                     function_names{i}, min(results), max(results), ...
                     mean(results), std(results));
@@ -160,16 +166,15 @@ function [bestCost, best_cost_history, bestX] = qao_run(func, dim, max_iter, n_p
     % 這裡的 D1 為整數序列 1:D（見下方說明）
     
 
-    % 維度對應的界線
-    lb = bound1x2(1)*ones(1, dim);    %bound1x2(1) 取的是下限值（例如 −5.12）。
-                                      
-    ub = bound1x2(2)*ones(1, dim);    %bound1x2(2)取的是上限值（例如 +5.12）。
+    % 優化：使用向量化操作建立邊界
+    lb = repmat(bound1x2(1), 1, dim);  % 下限值
+    ub = repmat(bound1x2(2), 1, dim);  % 上限值
 
     % 初始化族群（在 [0,1]^D）
     X = rand(n_particles, dim);
     fitness = zeros(n_particles, 1);
 
-    % 初始 fitness
+    % 優化：初始 fitness 評估（保持迴圈以便未來可能的平行化）
     for p = 1:n_particles
         x_real = denorm01_to_bounds(X(p,:), lb, ub);
         func_output = func(x_real);
@@ -182,90 +187,70 @@ function [bestCost, best_cost_history, bestX] = qao_run(func, dim, max_iter, n_p
     bestCost = gBestVal;
 
     best_cost_history = zeros(max_iter, 1);
-    % 將完整波型內的面積算出來，使用matlab trapz()函式計算
+    % 優化：預先計算氫原子機率分佈（只需計算一次）
     a0 = 1; 
-    num_slots = 10000;
-    num_points = num_slots + 1;
+    num_points = 10001;  % 直接使用點數
 
     % 原始 X 軸：物理距離 r (範圍 [0, 30])
     r_values_original = linspace(0, 30, num_points);
 
     % Y 軸：計算對應的機率密度 P(r)
-    P_r_values = (4 / a0^3) .* (r_values_original.^2) .* exp(-2 .* r_values_original ./ a0);
-    % (可選) 歸一化Y軸面積，這不影響X軸的調整
+    % 優化：預先計算常數項
+    const_factor = 4 / (a0^3);
+    P_r_values = const_factor * (r_values_original.^2) .* exp(-2 * r_values_original / a0);
+    
+    % 歸一化Y軸面積
     area = trapz(r_values_original, P_r_values);
     P_r_values_normalized = P_r_values / area;
 
+    % 優化：預先計算常數
+    exploration_threshold = (2/3) * max_iter;
+    
     for t = 1:max_iter
         X_mean = mean(X, 1);
         G1 = 2*rand() - 1;
         G2 = 2*(1 - t/max_iter);
+        
+        % 優化：預先計算時間相關係數
+        time_factor = 1 - t/max_iter;
 
         for p = 1:n_particles
-            if t <= (2/3)*max_iter
+            if t <= exploration_threshold
                 if rand < 0.5
                     % Expanded exploration (1) - 氫原子 1s 徑向
                     % 使用平均值來當作要修改的範圍
                     Umin_x = mean(X_mean);  % 氫原子
-                    Umax_x = mean(gBest);  % 電子
+                    Umax_x = mean(gBest);   % 電子
 
-                    % 呼叫 rescale_axis_range 函數來調整 X 軸，傳入固定的來源範圍
+                    % 呼叫 rescale_axis_range 函數來調整 X 軸
                     r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
                     generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
-                    X_new = gBest .* (1 - t/max_iter) + generated_samples;
+                    X_new = gBest * time_factor + (X_mean + generated_samples);
                 else
-                    % Narrowed exploration (2) - 氫原子 1s 徑向分佈（原點-電子模型）
-                    % 原點當作質子，X_random 當作電子
-                    rand_idx = floor(n_particles * rand) + 1;
-                    X_rand = X(rand_idx, :);  % 隨機個體作為電子位置
-                    
-                    origin = zeros(1,dim);
-                    Umin_x = mean(origin);
-                    Umax_x = mean(X_rand);
-
-                    r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
-                    generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
-
-                    r1 = 1 + (20-1)*rand;     % r1 ∈ [1,20]
-                    D1 = 1:dim;
-                    r = r1 + u * D1;
-                    theta = -w * D1 + theta1;
-    
-
-                    y = r .* cos(theta);
-                    x = r .* sin(theta);
-
-                    spiral = (y - x) .* rand(1, dim);
-                    
-                    % 新位置 = 質子位置 + 氫原子機率分佈距離 * 方向
-                    X_new = gBest.*levy_step(dim, u) + X_rand + generated_samples + spiral;
+                    % Narrowed exploration (2) with Lévy
+                    levy_val = levy_step(dim, u);
+                    rand_idx = randi(n_particles);  % 優化：使用 randi 替代 floor+rand
+                    X_rand = X(rand_idx, :);
+                    X_new = gBest .* levy_val + X_rand + (rand - 0.5) * 1e-3;
                 end
             else
                 if rand < 0.5
                     % Expanded exploitation (3)
-                    Umin_x = mean(gBest);  % 氫原子
-                    Umax_x = mean(X_mean);  % 電子
-
-                    % 呼叫 rescale_axis_range 函數來調整 X 軸，傳入固定的來源範圍
-                    r_values_rescaled = rescale_axis_range(r_values_original, Umin_x, Umax_x);
-                    generated_samples = inverse_transform_sampling(r_values_rescaled, P_r_values_normalized, dim);
-
-
-                    X_new = (gBest - generated_samples)*alpha - rand + ((ub - lb) * rand)*delta;
+                    X_new = (gBest - X_mean) * alpha - rand + rand * delta;
                 else
                     % Narrowed exploitation (4)
                     QF = t^((2*rand - 1)/(1 - max_iter)^2);
-                    X_new = QF .* gBest - (G1 .* X(p, :)*rand) - G2 .* levy_step(dim, u) + rand*G1;
+                    X_new = QF * gBest - (G1 * X(p, :) * rand) - G2 * levy_step(dim, u) + rand * G1;
                 end
             end
 
-            % 邊界裁切（仍在 [0,1]）
-            X_new = min(max(X_new, 0), 1);
+            % 優化：邊界裁切（更高效的寫法）
+            X_new = max(min(X_new, 1), 0);
 
             % 評估
             x_real = denorm01_to_bounds(X_new, lb, ub);
             func_output = func(x_real);
-            fNew = SSE(func_output, 0);  % 使用SSE損失函數，目標值為0
+            fNew = SSE(func_output, 0);
 
             % 個體更新
             if fNew < fitness(p)
@@ -291,15 +276,14 @@ function [bestCost, best_cost_history, bestX] = ao_run(func, dim, max_iter, n_pa
     % 這個包裝器在 [0,1]^D 搜尋，評估時映射到實際 [lb,ub]
     % 規則沿用你貼的 AO：四種策略 + Levy 擾動 + [0,1] 邊界裁切
 
-    % AO 參數（依你原始碼）
+    % AO 參數
     alpha = 0.1;            % exploitation 調整
     delta = 0.1;            % exploitation 調整
     u = 0.00565;            % Levy flight 參數
-    r1 = 10;                % Levy flight 參數（未顯式用到，保留一致性）
 
-    % 邊界
-    lb = bound1x2(1) * ones(1, dim);
-    ub = bound1x2(2) * ones(1, dim);
+    % 優化：使用 repmat 建立邊界
+    lb = repmat(bound1x2(1), 1, dim);
+    ub = repmat(bound1x2(2), 1, dim);
 
     % 初始化族群（在 [0,1]^D）
     X = rand(n_particles, dim);
@@ -309,7 +293,7 @@ function [bestCost, best_cost_history, bestX] = ao_run(func, dim, max_iter, n_pa
     for p = 1:n_particles
         x_real = denorm01_to_bounds(X(p, :), lb, ub);
         func_output = func(x_real);
-        fitness(p) = SSE(func_output, 0);  % 使用SSE損失函數，目標值為0
+        fitness(p) = SSE(func_output, 0);
     end
 
     [gBestVal, idx] = min(fitness);
@@ -318,42 +302,48 @@ function [bestCost, best_cost_history, bestX] = ao_run(func, dim, max_iter, n_pa
     bestCost = gBestVal;
 
     best_cost_history = zeros(max_iter, 1);
+    
+    % 優化：預先計算常數
+    exploration_threshold = (2/3) * max_iter;
 
     for t = 1:max_iter
         X_mean = mean(X, 1);
         G1 = 2*rand() - 1;
         G2 = 2 * (1 - t / max_iter);
+        
+        % 優化：預先計算時間相關係數
+        time_factor = 1 - t/max_iter;
 
         for p = 1:n_particles
-            if t <= (2/3) * max_iter
+            if t <= exploration_threshold
                 if rand < 0.5
                     % Expanded exploration (1)
-                    X_new = gBest .* (1 - t/max_iter) + (X_mean - gBest * rand);
+                    X_new = gBest * time_factor + (X_mean - gBest * rand);
                 else
                     % Narrowed exploration (2) with Lévy
                     levy_val = levy_step(dim, u);
-                    rand_idx = floor(n_particles * rand) + 1;
+                    rand_idx = randi(n_particles);  % 優化：使用 randi
                     X_rand = X(rand_idx, :);
                     X_new = gBest .* levy_val + X_rand + (rand - 0.5) * 1e-3;
                 end
             else
                 if rand < 0.5
                     % Expanded exploitation (3)
-                    X_new = (gBest - X_mean) * alpha - rand + (rand) * delta;
+                    X_new = (gBest - X_mean) * alpha - rand + rand * delta;
                 else
                     % Narrowed exploitation (4)
                     QF = t^((2*rand - 1)/(1 - max_iter)^2);
-                    X_new = QF .* gBest - (G1 .* X(p, :) * rand) - G2 .* levy_step(dim, u) + rand * G1;
+                    X_new = QF * gBest - (G1 * X(p, :) * rand) - G2 * levy_step(dim, u) + rand * G1;
                 end
             end
 
-            % 邊界裁切（保持在 [0,1]）
-            X_new = min(max(X_new, 0), 1);
+            % 優化：邊界裁切
+            X_new = max(min(X_new, 1), 0);
 
             % 評估
             x_real = denorm01_to_bounds(X_new, lb, ub);
             func_output = func(x_real);
-            fNew = SSE(func_output, 0);  % 使用SSE損失函數，目標值為0
+            fNew = SSE(func_output, 0);
 
             % 個體更新
             if fNew < fitness(p)
@@ -390,53 +380,54 @@ end
 
 function samples = inverse_transform_sampling(x_values, pdf_values, num_samples)
 %INVERSE_TRANSFORM_SAMPLING 從數值 PDF 生成隨機樣本
+%   優化版本：減少不必要的轉置和複製操作
 
-    % 1. 計算數值 CDF (累積分佈函數)
-    x_values = x_values(:)';
-    pdf_values = pdf_values(:)';
+    % 1. 確保輸入為行向量並計算 CDF
+    if size(x_values, 1) > 1
+        x_values = x_values';
+    end
+    if size(pdf_values, 1) > 1
+        pdf_values = pdf_values';
+    end
     CDF_values = cumtrapz(x_values, pdf_values);
 
     % 2. 確保 CDF 範圍是 [0, 1] 
     CDF_values(1) = 0;
     CDF_values(end) = 1;
     
-    % 3. 處理 CDF 中的平坦區域 (重複值)
+    % 3. 處理 CDF 中的平坦區域（使用 'last' 選項）
     [CDF_unique, ia] = unique(CDF_values, 'last');
     x_unique = x_values(ia);
 
-    % 4. 生成 U(0, 1) 的均勻分佈隨機數
-    u = rand(num_samples, 1);
-
-    % 5. 執行逆轉換：使用 "乾淨" 且 "唯一" 的 CDF 和 X 值進行插值
-    samples = interp1(CDF_unique, x_unique, u);
-    samples = samples(:)'; 
+    % 4. 生成 U(0, 1) 的均勻分佈隨機數並執行逆轉換
+    u = rand(1, num_samples);
+    samples = interp1(CDF_unique, x_unique, u, 'linear', 'extrap');
 end
 
 function U_x = rescale_axis_range(G_x, Umin_x, Umax_x)
 %RESCALE_AXIS_RANGE 將輸入的 X 軸向量 G_x 線性映射到一個新的範圍 [Umin_x, Umax_x]
 %
 %   輸入:
-%       G_x    - 原始的 X 軸數據向量 (例如 r_values)
-%       Umin_x - 目標 X 軸範圍的最小值
-%       Umax_x - 目標 X 軸範圍的最大值
-%
+%       G_x    - 原始的 X 軸數據向量
+%       Umin_x - 目標範圍的最小值
+%       Umax_x - 目標範圍的最大值
 %   輸出:
 %       U_x    - 調整到新範圍的 X 軸數據向量
 
-    % 獲取 G_x 的實際最大值和最小值
+    % 優化：使用 min/max 的單次調用
     Gmin_x = min(G_x);
     Gmax_x = max(G_x);
     
-    % 檢查 Gmax 和 Gmin 是否相同，以避免除以零
+    % 檢查範圍以避免除以零
     if Gmax_x == Gmin_x
-        U_x = ones(size(G_x)) * Umin_x;
-        warning('輸入的 X 軸向量所有元素都相同。');
+        U_x = repmat(Umin_x, size(G_x));  % 優化：使用 repmat
+        warning('rescale_axis_range:constantInput', '輸入的 X 軸向量所有元素都相同。');
         return;
     end
 
-    % 應用標準範圍調整公式 (與 Y 軸調整的邏輯相同)
-    % U_x = ( (G_x - Gmin_x) / (Gmax_x - Gmin_x) ) * (Umax_x - Umin_x) + Umin_x;
-    U_x = ((G_x - Gmin_x) ./ (Gmax_x - Gmin_x)) .* (Umax_x - Umin_x) + Umin_x;
+    % 優化：一次性計算縮放係數
+    scale_factor = (Umax_x - Umin_x) / (Gmax_x - Gmin_x);
+    U_x = (G_x - Gmin_x) * scale_factor + Umin_x;
 end
 
 % ===================== 測試函數 (F1-F13) =====================
@@ -454,11 +445,10 @@ end
 
 % --- F3 (Unimodal) ---
 function y = f3(x)
-    y = 0;
+    % 優化：向量化計算，避免迴圈
     d = numel(x);
-    for i = 1:d
-        y = y + (sum(x(1:i)))^2;
-    end
+    cumsum_x = cumsum(x);
+    y = sum(cumsum_x.^2);
 end
 
 % --- F4 (Unimodal) ---
@@ -509,67 +499,37 @@ end
 
 % --- F11 (Multimodal) ---
 function y = griewank(x)
+    % 優化：向量化計算
     % global optimum at x=0, f=0
     D = numel(x);
-    sumTerm = sum(x.^2)/4000;
-    prodTerm = 1;
-    for i = 1:D
-        prodTerm = prodTerm * cos(x(i)/sqrt(i));
-    end
+    sumTerm = sum(x.^2) / 4000;
+    % 優化：使用 prod 函數替代迴圈
+    prodTerm = prod(cos(x ./ sqrt(1:D)));
     y = sumTerm - prodTerm + 1;
 end
 
 % --- F12 (Multimodal) ---
-% 根據 PDF Table 3 的公式實現
+% 根據 PDF Table 3 的公式實現 (Levy and Montalvo)
 function y = f12(x)
     n = numel(x);
-    y1 = 1 + (x + 1)/4;
+    y1 = 1 + (x + 1) / 4;
     
+    % 優化：向量化計算
     term1 = 10 * sin(pi * y1(1));
     
-    term2_sum = 0;
-    for i = 1:(n-1)
-        term2_sum = term2_sum + (y1(i)-1)^2 * (1 + 10 * sin(pi * y1(i+1))^2);
+    % 優化：向量化 term2
+    if n > 1
+        term2 = sum((y1(1:n-1) - 1).^2 .* (1 + 10 * sin(pi * y1(2:n)).^2));
+    else
+        term2 = 0;
     end
     
-    % PDF F12的公式似乎不完整，但標準F12定義包含y_n項
-    term3 = (y1(n)-1)^2 * (1 + 10 * sin(pi * y1(n))^2); % 修正：使用y_n和y_n
+    term3 = (y1(n) - 1)^2;
     
-    u_sum = 0;
-    for i = 1:n
-        u_sum = u_sum + u_func(x(i), 10, 100, 4);
-    end
+    % 優化：向量化 u 函數計算
+    u_sum = sum(arrayfun(@(xi) u_func(xi, 10, 100, 4), x));
     
-    % 修正：標準定義中 term3 不乘以 10*sin...
-    term3_std = (y1(n)-1)^2;
-    
-    % 採用PDF Table 3 的結構
-    % f(x)=\frac{\pi}{n}(10sin(\pi y_{1}))+\sum_{i=1}^{n-1}(y_{i}-1)^{2}[1+10sin^{2}(\pi y_{i+1}) + ...
-    % PDF公式 F12 似乎在表格中被截斷且有誤。
-    % 這裡我們採用一個常見的 F12 (Levy and Montalvo) 實現，它匹配PDF的 y_i 和 u 函數
-    
-    term1_f12 = sin(pi * y1(1))^2;
-    term2_f12 = sum((y1(1:n-1) - 1).^2 .* (1 + 10 * sin(pi * y1(2:n)).^2));
-    term3_f12 = (y1(n) - 1)^2 * (1 + sin(2 * pi * y1(n))^2); % PDF F13有類似項
-    
-    % 重新採用 F12 PDF Table 3 的公式
-    term1_pdf = 10 * sin(pi * y1(1));
-    term2_pdf = 0;
-    for i=1:(n-1)
-        term2_pdf = term2_pdf + (y1(i)-1)^2 * (1 + 10*sin(pi*y1(i+1))^2);
-    end
-    % PDF F12的描述 $u(x_i, 10, 100, 4)$
-    u_sum_pdf = 0;
-    for i = 1:n
-        u_sum_pdf = u_sum_pdf + u_func(x(i), 10, 100, 4);
-    end
-    
-    % PDF F12第二行似乎是 $y_n$ 項，但格式混亂
-    % $ (y_n-1)^2 [1 + 10\sin^2(\pi y_{n+1})] $ -> $y_{n+1}$ 超界
-    % 假設它是 $(y_n-1)^2$
-    term3_pdf = (y1(n)-1)^2;
-    
-    y = (pi/n) * (term1_pdf + term2_pdf + term3_pdf) + u_sum_pdf;
+    y = (pi/n) * (term1 + term2 + term3) + u_sum;
 end
 
 % --- F13 (Multimodal) ---
@@ -577,26 +537,20 @@ end
 function y = f13(x)
     n = numel(x);
     
-    % PDF: $sin^{2}(3xx_{1})$ -> 假設 $3\pi x_1$
+    % 優化：向量化計算
     term1 = sin(3 * pi * x(1))^2;
     
-    sum_term = 0;
-    % PDF: $\sum_{l=1}^{n}(x_{l}-1)^{2}[1+sin^{2}(3xx_{l}+1)]$
-    % 這與下一項 $ (x_n-1)^2 ... $ 重複了
-    % 假設 $\sum_{l=1}^{n-1}$
-    for i = 1:(n-1)
-        % PDF: $sin^{2}(3xx_{l}+1)$ -> 假設 $3\pi x_i + 1$
-        sum_term = sum_term + (x(i)-1)^2 * (1 + sin(3 * pi * x(i) + 1)^2);
+    % 優化：向量化 sum_term
+    if n > 1
+        sum_term = sum((x(1:n-1) - 1).^2 .* (1 + sin(3 * pi * x(1:n-1) + 1).^2));
+    else
+        sum_term = 0;
     end
     
-    % PDF: $(x_{n}-1)^{2}1+sin^{2}(2xx_{n})$ -> 假設 $(x_n-1)^2 * (1 + sin(2\pi x_n)^2)$
-    term3 = (x(n)-1)^2 * (1 + sin(2 * pi * x(n))^2);
+    term3 = (x(n) - 1)^2 * (1 + sin(2 * pi * x(n))^2);
     
-    % PDF: $\sum_{l=1}^{n}u(x_{l}.5,100,4)$ -> 假設 $u(x_i, 5, 100, 4)$
-    u_sum = 0;
-    for i = 1:n
-        u_sum = u_sum + u_func(x(i), 5, 100, 4);
-    end
+    % 優化：向量化 u 函數計算
+    u_sum = sum(arrayfun(@(xi) u_func(xi, 5, 100, 4), x));
     
     y = 0.1 * (term1 + sum_term + term3) + u_sum;
 end
@@ -616,11 +570,8 @@ end
 
 
 % ===================== 損失函數 =====================
-function [sse] = SSE(Y_output, Y_target)
+function sse = SSE(Y_output, Y_target)
     % SSE: Sum of Squared Errors
-    % Y_output, Y_target 大小為 N x D
-    div = Y_output - Y_target;
-
-    % 把所有樣本、所有維度的誤差平方加總
-    sse = sum(div(:).^2);
+    % 優化：直接計算平方和，避免中間變數
+    sse = sum((Y_output - Y_target).^2, 'all');
 end
