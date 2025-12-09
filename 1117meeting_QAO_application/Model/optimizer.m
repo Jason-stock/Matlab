@@ -2,7 +2,7 @@ function [ifParm, cnsqParm, baseVarFuzzyN, lossAll] = optimizer(H_train, Y_train
 addpath(fullfile(pwd, 'Model', 'LossFunc'), fullfile(pwd, 'Model', 'FIS'), fullfile(pwd, 'Model', 'Algo'));
 particleNum = 60;
 baseVarFuzzyN = [2;2;2;2];
-[ifParm, cnsqParm, lossAll] = AO(tIter, H_train, Y_train, particleNum, baseVarFuzzyN);
+[ifParm, cnsqParm, lossAll] = QAO_V2(tIter, H_train, Y_train, particleNum, baseVarFuzzyN);
 
 rmpath(fullfile(pwd, 'Model', 'LossFunc'), fullfile(pwd, 'Model', 'FIS'), fullfile(pwd, 'Model', 'Algo'));
 end
